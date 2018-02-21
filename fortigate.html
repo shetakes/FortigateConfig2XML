@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<body>
+<p>ファイルを選択して下さい。<br />
+    ※文字コードがShift_JISの場合は文字化けします。</p>
+<input type="file" name="file" id="file">
+<div id="result"></div>
+<textarea id="input_xml" wrap="off" readonly style="height: 500px; width: 800px"></textarea>
+<textarea id="output_xml" wrap="off" readonly style="height: 500px; width: 800px"></textarea>
+
+
+
+
+
+<script type="text/javascript">
+    var file = document.getElementById('file');
+    var inputXML = document.getElementById('input_xml');
+    var outputXML = document.getElementById('output_xml');
+
+    var xml_text = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<config>\n";
+
+    // File APIに対応しているか確認
+    if(window.File && window.FileReader && window.FileList && window.Blob) {
+        function loadLocalCsv(e) {
+            // ファイル情報を取得
+            var fileData = e.target.files[0];
+            console.log(fileData); // 取得した内容の確認用
+
+            var configAry =[];
+
+
+            // FileReaderオブジェクトを使ってファイル読み込み
+            var reader = new FileReader();
+            // ファイル読み込みに成功したときの処理
+            reader.onload = function() {
+                var cols = reader.result.split('\n');
+
+                for (var i = 0; i < cols.length; i++) {
+                    var line = cols[i].trim();
+
+                    if(line.indexOf('#') == 0){
+                        xml_text += "<!-- " + line + " -->\n";
+                    }else{
+                        var config_value = line.split(/ +/);
+
+
+                        if( config_value[0] ==='config'){
+                            configAry.push(line);
+                            xml_text += "<" + line.replace(/"/g,"").replace(/ /g,"_") + ">\n";
+                        }else if( config_value[0] ==='end'){
+                            var configName = configAry.pop();
+                            console.log(configName);
+                            xml_text += "</" + configName.replace(/"/g,"").replace(/ /g,"_") + ">\n";
+                        }else if(config_value[0] ==='edit'){
+                            var elementConfigName = configAry[configAry.length -1].split(/ +/);
+                            var elementName = elementConfigName[elementConfigName.length -1];
+                            var editArray = line.replace('edit ',"");
+                            xml_text += "<" + elementName + ' id="' + editArray.replace(/"/g, '').replace(/[, &]/g, '_') + '">\n';
+
+                        }else if(config_value[0] ==='next'){
+                            var elementConfigName = configAry[configAry.length -1].split(/ +/);
+                            var elementName = elementConfigName[elementConfigName.length -1];
+                            xml_text += "</" + elementName + '>\n';
+                        }else if(config_value[0] ==='set'){
+                            var lineArray = line.split(/ +/);
+                            xml_text += "<" + lineArray[1] +">"
+                            for(var j = 2; j < lineArray.length; j++){
+                                xml_text += lineArray[j].entityify() + ' ';
+                            }
+                            xml_text = xml_text.slice(0,-1);
+                            xml_text += "</" + lineArray[1] +">\n"
+                        }else{
+                            xml_text += line + "\n";
+                        }
+                    }
+
+                }
+
+                xml_text  += "</config>";
+
+                outputXML.value = xml_text;
+                inputXML.value = reader.result;
+            };
+            // ファイル読み込みを実行
+            reader.readAsText(fileData);
+        }
+        file.addEventListener('change', loadLocalCsv, false);
+
+    } else {
+        file.style.display = 'none';
+        result.innerHTML = 'File APIに対応したブラウザでご確認ください';
+    }
+
+    Function.prototype.method = function(name, func) {
+        if (!this.prototype[name]) {
+            this.prototype[name] = func;
+            return this;
+        }
+    };
+
+
+    String.method('entityify',function(){
+        var character = {
+            '<' : '&lt;',
+            '>' : '&gt;',
+            '&' : '&amp;',
+            '"' : '&quot;'
+        };
+        return this.replace(/[<>&"]/g, function (c) {return character[c];});
+    });
+
+</script>
+</body>
+
+</html>
